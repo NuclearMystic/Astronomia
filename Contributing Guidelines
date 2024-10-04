@@ -1,0 +1,48 @@
+Contributing Guidelines
+Welcome to our Unity project! Here’s how we’ll work together to keep the project organized and efficient. These are flexible guidelines—let’s collaborate and adjust as needed.
+
+Branching Strategy
+We’re using a basic branching model to keep things clear and easy to follow.
+
+Main Branch: This branch should always have the latest stable code. No direct commits—everything comes through pull requests (PRs).
+Dev Branch: This branch we will use to test code together before commiting to main
+Feature Branches: For new features, bug fixes, or experiments, create a new branch off of main. Use a descriptive name, such as:feature/inventory-system bugfix/resolve-null-reference
+
+How to Create a Branch
+Sync with the latest main branch: git checkout main git pull
+Create your feature branch: git checkout -b feature/your-branch-name
+
+Commit Messages
+Commit often and keep messages short but meaningful. Use the following prefixes when applicable:
+feat: – for new features (e.g., feat: add inventory system)
+fix: – for bug fixes (e.g., fix: resolve crash when opening menu)
+chore: – for small tasks like file cleanup or dependency updates
+Example:
+bashCopy codegit commit -m "feat: add quest system UI"
+
+Pull Requests
+Once you’re ready to merge, open a pull request (PR) to main.
+Make sure your branch is up to date with main before submitting a PR.
+Add a clear description of the changes in the PR.
+Tag someone for a quick review if needed.
+
+How to Open a Pull Request
+Push your branch to the repository: git push origin feature/your-branch-name
+Open a pull request on GitHub targeting the main branch.
+Include a short summary of what’s in the PR (e.g., “This adds the basic inventory system and connects it to the UI”).
+
+Syncing with Main
+To keep things from getting out of sync, pull updates from main regularly:
+Switch to your branch: git checkout feature/your-branch-name
+Rebase with main: git fetch origin git rebase origin/main
+Resolve any conflicts, if necessary.
+
+Unity Project Setup
+Here are a few Unity-specific notes:
+Make sure your version of Unity matches the project version listed in the ProjectSettings.
+Keep your changes small and test locally before pushing.
+Use .gitignore to avoid pushing unnecessary or large files (e.g., Library/ or Temp/).
+
+Testing and Debugging
+Test your feature thoroughly before pushing or making a PR.
+If a bug comes up, let’s talk through it in the PR or open a new issue if needed.
