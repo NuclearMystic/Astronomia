@@ -87,16 +87,16 @@ public class TopDownCharacterController : MonoBehaviour
                 if (Mathf.Abs(moveX) > Mathf.Abs(moveY))
                 {
                     if (moveX > 0)
-                        SetDirection("Right");
+                        SetDirection(Right);
                     else
-                        SetDirection("Left");
+                        SetDirection(Left);
                 }
                 else
                 {
                     if (moveY > 0)
-                        SetDirection("Up");
+                        SetDirection(Up);
                     else
-                        SetDirection("Down");
+                        SetDirection(Down);
                 }
             }
         }
@@ -119,11 +119,28 @@ public class TopDownCharacterController : MonoBehaviour
         // Jump if allowed
         if (Input.GetButtonDown("Jump") && !isJumping)
         {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
             isJumping = true;
 
-            // Trigger jump animation
-            animator.SetTrigger("Jump");
+            // Apply the jump force
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+
+            // Determine jump direction based on lastDirection
+            if (lastDirection == Vector2.up)
+            {
+                animator.SetTrigger("JumpUp");
+            }
+            else if (lastDirection == Vector2.down)
+            {
+                animator.SetTrigger("JumpDown");
+            }
+            else if (lastDirection == Vector2.left)
+            {
+                animator.SetTrigger("JumpLeft");
+            }
+            else if (lastDirection == Vector2.right)
+            {
+                animator.SetTrigger("JumpRight");
+            }
         }
     }
 
@@ -140,7 +157,6 @@ public class TopDownCharacterController : MonoBehaviour
         if (Input.GetButtonDown("Run/Walk Toggle"))
         {
             isRunning = !isRunning;
-            Debug.Log("Run walk toggle pressed.");
 
             // Update animator's isRunning parameter
             animator.SetBool("isRunning", isRunning);
