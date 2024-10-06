@@ -162,4 +162,9 @@ public class TopDownCharacterController : MonoBehaviour
             animator.SetBool("isRunning", isRunning);
         }
     }
+
+    public Vector2 GetFacingDirection()
+    {
+        return lastDirection;
+    }
 }
