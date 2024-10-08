@@ -21,6 +21,9 @@ public class Interactable : MonoBehaviour, IInteractable
             case InteractionType.Talk:
                 Debug.Log("Howdy!");
                 break;
+            case InteractionType.PickUp:
+                Debug.Log("Got Item!");
+                break;
             default:
                 Debug.Log("It's nothing...");
                 break;
@@ -33,5 +36,6 @@ public enum InteractionType
     Toggle,
     Talk,
     Inspect,
-    Activate
+    Activate,
+    PickUp
 }
