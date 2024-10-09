@@ -1,16 +1,25 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.UIElements.Experimental;
 
 public class PlayerVitals : MonoBehaviour
 {
+
+    #region Singleton
     public static PlayerVitals instance;
 
     private void Awake()
     {
-        instance = this;
+        if (instance == null)
+        {
+            instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
+    #endregion 
 
     [Header("Sliders")]
     [Tooltip("Slider from the health bar.")]
@@ -19,6 +28,25 @@ public class PlayerVitals : MonoBehaviour
     [SerializeField] private Slider staminaSlider;
     [Tooltip("Slider from the magic bar.")]
     [SerializeField] private Slider magicSlider;
+
+    [Header("Modifiers")]
+    [Tooltip("Placeholder modifier representing attribute that will affect max health.")]
+    public float healthAttribute = 1.0f;
+    [Tooltip("Placeholder modifier representing attribute that will affect max stamina.")]
+    public float staminaAttribute = 1.0f;
+    [Tooltip("Placeholder modifier representing attribute that will affect max magic.")]
+    public float magicAttribute = 1.0f;
+
+    [Header("Conditions")]
+    [Tooltip("Is the player currently in combat?")]
+    public bool inCombat = false;
+    private bool isHealing = false; // Flag to track if healing is active
+    private bool isRestoringStamina = false;
+    private bool isRestoringMagic = false;
+
+    private Coroutine healingCoroutine;
+    private Coroutine staminaRegenCoroutine;
+    private Coroutine magicRegenCoroutine;
 
     // health
     private float currentHealth;
@@ -34,42 +62,57 @@ public class PlayerVitals : MonoBehaviour
 
     void Start()
     {
+        // initialize vitals with starting max values based off attributes
+        InitializeVitals();
+
+        // initialize sliders with starting current health
+        RefreshBarsUI();
+    }
+
+    public void InitializeVitals()
+    {
+        SetMaxValues();
         healthSlider.maxValue = maxHealth;
         staminaSlider.maxValue = maxStamina;
         magicSlider.maxValue = maxMagic;
         currentHealth = maxHealth;
         currentStamina = maxStamina;
         currentMagic = maxMagic;
-
-        // initialize sliders with starting current health
-        RefreshBarsUI();
     }
 
     private void Update()
     {
-        if(currentHealth < 0)
+        // Clamping values
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+        currentStamina = Mathf.Clamp(currentStamina, 0, maxStamina);
+        currentMagic = Mathf.Clamp(currentMagic, 0, maxMagic);
+
+        if (currentHealth == 0)
         {
-            currentHealth = 0;
+            DeathHandling();
         }
-        if(currentStamina < 0)
+
+        // Start passive healing if health is not full, player is not dead, and not in combat
+        if (currentHealth < maxHealth && currentHealth > 0 && !inCombat && !isHealing)
         {
-            currentStamina = 0;
+            healingCoroutine = StartCoroutine(PassiveHealing());
         }
-        if(currentMagic < 0)
+
+        // Stop healing if player is in combat, at full health, or dead
+        if (currentHealth == maxHealth || inCombat || currentHealth == 0)
         {
-            currentMagic = 0;
+            StopHealing();
         }
-        if (currentHealth > maxHealth)
+
+        // Start stamina and magic regeneration if not full
+        if (currentStamina < maxStamina && !isRestoringStamina)
         {
-            currentHealth = maxHealth;
+            staminaRegenCoroutine = StartCoroutine(PassiveStaminaRegen());
         }
-        if(currentStamina > maxStamina)
+
+        if (currentMagic < maxMagic && !isRestoringMagic)
         {
-            currentStamina = maxStamina;
-        }
-        if(currentMagic > maxMagic)
-        {
-            currentMagic = maxMagic;
+            magicRegenCoroutine = StartCoroutine(PassiveMagicRegen());
         }
     }
 
@@ -81,10 +124,21 @@ public class PlayerVitals : MonoBehaviour
         magicSlider.value = currentMagic;
     }
 
+    #region Health Logic
     // call this method with a damage value to damage player health
     public void DamageHealth(float damage)
     {
         currentHealth -= damage;
+
+        // Stop healing if damaged
+        StopHealing();
+
+        // Start healing again after 5 seconds
+        if (!inCombat && currentHealth > 0 && currentHealth < maxHealth)
+        {
+            healingCoroutine = StartCoroutine(PassiveHealing());
+        }
+
         RefreshBarsUI();
         Debug.Log("Player health damaged " + damage);
     }
@@ -97,9 +151,40 @@ public class PlayerVitals : MonoBehaviour
         Debug.Log("Player health restored " + healing);
     }
 
+    private IEnumerator PassiveHealing()
+    {
+        isHealing = true;
+
+        // Wait for 5 seconds before starting healing
+        yield return new WaitForSeconds(5);
+
+        // Continue healing while the player is not at max health and not in combat
+        while (currentHealth < maxHealth && !inCombat)
+        {
+            currentHealth += Time.deltaTime; // Adjust healing speed here if needed
+            RefreshBarsUI();
+            yield return null;
+        }
+
+        isHealing = false;
+    }
+
+    private void StopHealing()
+    {
+        if (healingCoroutine != null)
+        {
+            StopCoroutine(healingCoroutine);
+            healingCoroutine = null;
+            isHealing = false;
+        }
+    }
+    #endregion
+
+    #region Stamina Logic
     // call this with the amount of stamina to drain from player
     public void DrainStamina(float stamina)
     {
+        StopStaminaRegen(); // Stop regen if stamina is used
         StartCoroutine(DrainPlayerStamina(stamina));
         RefreshBarsUI();
         Debug.Log("Player stamina drained " + stamina);
@@ -108,7 +193,7 @@ public class PlayerVitals : MonoBehaviour
     // makes stamina drain over time
     private IEnumerator DrainPlayerStamina(float drainAmount)
     {
-        float drainedStamina = drainAmount; // Track the remaining stamina to drain
+        float drainedStamina = drainAmount;
         while (drainedStamina > 0)
         {
             currentStamina -= drainAmount * Time.deltaTime;
@@ -116,11 +201,15 @@ public class PlayerVitals : MonoBehaviour
             RefreshBarsUI();
             yield return null;
         }
+
+        // Restart stamina regeneration after drain
+        staminaRegenCoroutine = StartCoroutine(PassiveStaminaRegen());
     }
 
     // call this to restore player stamina
     public void RestoreStamina(float stamina)
     {
+        StopStaminaRegen();
         StartCoroutine(RestorePlayerStamina(stamina));
         RefreshBarsUI();
         Debug.Log("Player stamina restored " + stamina);
@@ -137,17 +226,51 @@ public class PlayerVitals : MonoBehaviour
             RefreshBarsUI();
             yield return null;
         }
+
+        // Restart regeneration after manual restore
+        staminaRegenCoroutine = StartCoroutine(PassiveStaminaRegen());
     }
 
+    private IEnumerator PassiveStaminaRegen()
+    {
+        isRestoringStamina = true;
+        yield return new WaitForSeconds(5);
+
+        while (currentStamina < maxStamina)
+        {
+            currentStamina += Time.deltaTime;
+            RefreshBarsUI();
+            yield return null;
+        }
+
+        isRestoringStamina = false;
+    }
+
+    private void StopStaminaRegen()
+    {
+        if (staminaRegenCoroutine != null)
+        {
+            StopCoroutine(staminaRegenCoroutine);
+            staminaRegenCoroutine = null;
+            isRestoringStamina = false;
+        }
+    }
+    #endregion
+
+    #region Magic Logic
     public void UseMagic(float magic)
     {
+        StopMagicRegen(); // Stop magic regen if magic is used
         currentMagic -= magic;
         RefreshBarsUI();
         Debug.Log("Player used magic " + magic);
+
+        magicRegenCoroutine = StartCoroutine(PassiveMagicRegen());
     }
 
     public void ReplenishMagic(float magic)
     {
+        StopMagicRegen();
         StartCoroutine(RestorePlayerMagic(magic));
         RefreshBarsUI();
         Debug.Log("Player magic replenished " + magic);
@@ -164,5 +287,54 @@ public class PlayerVitals : MonoBehaviour
             RefreshBarsUI();
             yield return null;
         }
+
+        magicRegenCoroutine = StartCoroutine(PassiveMagicRegen());
+    }
+
+    private IEnumerator PassiveMagicRegen()
+    {
+        isRestoringMagic = true;
+        yield return new WaitForSeconds(5);
+
+        while (currentMagic < maxMagic)
+        {
+            currentMagic += Time.deltaTime;
+            RefreshBarsUI();
+            yield return null;
+        }
+
+        isRestoringMagic = false;
+    }
+
+    private void StopMagicRegen()
+    {
+        if (magicRegenCoroutine != null)
+        {
+            StopCoroutine(magicRegenCoroutine);
+            magicRegenCoroutine = null;
+            isRestoringMagic = false;
+        }
+    }
+    #endregion
+
+    public void SetMaxValues()
+    {
+        maxHealth = 100 * healthAttribute;
+        maxStamina = 100 * staminaAttribute;
+        maxMagic = 100 * magicAttribute;
+        RefreshBarsUI();
+    }
+
+    public void RestoreAllVitals()
+    {
+        currentHealth = maxHealth;
+        currentStamina = maxStamina;
+        currentMagic = maxMagic;
+        RefreshBarsUI();
+    }
+
+    private void DeathHandling()
+    {
+        Debug.Log("Player has died. R.I.P.");
     }
 }
