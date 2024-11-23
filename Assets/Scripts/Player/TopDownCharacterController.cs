@@ -119,8 +119,6 @@ public class TopDownCharacterController : MonoBehaviour
         // Jump if allowed
         if (Input.GetButtonDown("Jump") && !isJumping)
         {
-            isJumping = true;
-
             // Apply the jump force
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
 
@@ -148,7 +146,13 @@ public class TopDownCharacterController : MonoBehaviour
     public void ResetJump()
     {
         // Reset jumping state after landing
-        isJumping = false;
+        if (isJumping)
+        {
+            isJumping = false;
+        }else
+        {
+            isJumping = true;
+        }
     }
 
     private void HandleRunWalkToggle()
